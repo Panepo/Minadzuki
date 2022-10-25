@@ -103,6 +103,14 @@
                             Click="ButtonSaveClick">
                             <TextBlock Foreground="#DDFFFFFF">Save Processed Image</TextBlock>
                         </Button>
+                        <Button
+                            x:Name="ButtonGoUrl"
+                            Height="42"
+                            Margin="5"
+                            Click="ButtonGoUrlClick"
+                            IsEnabled="false">
+                            <TextBlock Foreground="#DDFFFFFF">Go To URL</TextBlock>
+                        </Button>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Vertical">
                         <Border

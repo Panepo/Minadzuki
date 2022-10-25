@@ -15,6 +15,7 @@ using System.Windows.Shapes;
 using System.Drawing;
 using System.Windows.Controls.Primitives;
 using Minadzuki;
+using System.Diagnostics;
 
 namespace MinadzukiWPF
 {
@@ -91,6 +92,12 @@ namespace MinadzukiWPF
                 ZXingCode.DecodeDetailed det = ZXingCode.ImageDecodeDetail(src, option, conf, outConf);
                 textDst.Text = det.Text;
                 imgDst.Source = FormatHelper.Bitmap2ImageSource(det.ProcessedSrc);
+
+                bool result = Uri.TryCreate(det.Text, UriKind.Absolute, out Uri uriResult)
+                    && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps);
+
+                if (result) ButtonGoUrl.IsEnabled = true;
+                else ButtonGoUrl.IsEnabled = false;
             }
         }
 
@@ -111,6 +118,12 @@ namespace MinadzukiWPF
                 textDst.Text = det.Text;
                 imgDst.Source = FormatHelper.Bitmap2ImageSource(det.ProcessedSrc);
                 processed = true;
+
+                bool resultx = Uri.TryCreate(det.Text, UriKind.Absolute, out Uri uriResult)
+                    && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps);
+
+                if (resultx) ButtonGoUrl.IsEnabled = true;
+                else ButtonGoUrl.IsEnabled = false;
             }
         }
 
@@ -127,6 +140,12 @@ namespace MinadzukiWPF
                 textDst.Text = det.Text;
                 imgDst.Source = FormatHelper.Bitmap2ImageSource(det.ProcessedSrc);
                 processed = true;
+
+                bool result = Uri.TryCreate(det.Text, UriKind.Absolute, out Uri uriResult)
+                    && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps);
+
+                if (result) ButtonGoUrl.IsEnabled = true;
+                else ButtonGoUrl.IsEnabled = false;
             }
         }
 
@@ -148,6 +167,11 @@ namespace MinadzukiWPF
                         encoder.Save(stream);
                 }
             }
+        }
+
+        private void ButtonGoUrlClick(object sender, RoutedEventArgs e)
+        {
+            Process.Start("microsoft-edge:" + textDst.Text);
         }
 
         private void ComboBoxDecoerSelectionChanged(object sender, SelectionChangedEventArgs e)
