@@ -122,13 +122,17 @@ namespace Minadzuki
 
             return reader;
         }
+
+        private static readonly string[] format1d = { "CODABAR", "CODE_128", "CODE_39", "CODE_93", "EAN_13", "EAN_8", "ITF", "UPC_A", "UPC_E", "UPC_EAN_EXTENSION" };
+        private static readonly string[] format2d = { "AZTEC", "QR_CODE" };
+        private static readonly string[] format1dx = { "RSS_14", "RSS_EXPANDED" }; // more that 2 barcode points
+        private static readonly string[] formatTest = { "DATA_MATRIX", "PDF_417" }; // no points
         #endregion
 
         #region Detailed Output
         public struct DecodeDetailed
         {
             public string Text;
-            public Rectangle Box;
             public Bitmap ProcessedSrc;
         }
 

@@ -46,116 +46,164 @@ namespace Minadzuki
                     if (result == null)
                     {
                         output.Text = "not detected";
-                        output.Box = new Rectangle();
                         output.ProcessedSrc = bmp;
                         return output;
                     }
                     
                     output.Text = result.Text;
 
-                    System.Drawing.Point loc = new System.Drawing.Point();
-                    System.Drawing.Size siz = new System.Drawing.Size();
-
-                    GetBoundingBox(result.ResultPoints, out loc, out siz);
-                    output.Box = new Rectangle(loc, siz);
-
                     switch (outConf)
                     {
                         case ProcessedType.IMAGE_BOXED:
-                            if (conf.Contains(ImagePR.IMAGE_RESIZE))
-                            {
-                                if (image.Width <= 300 || image.Height <= 300)
-                                {
-                                    float scale;
-
-                                    if (image.Width > image.Height) scale = 300 / image.Height;
-                                    else scale = 300 / image.Width;
-
-                                    output.ProcessedSrc = DrawBoundingBox(ResizeImage(image, (int)(image.Width * scale), (int)(image.Height * scale)), output.Box);
-                                }
-                                else output.ProcessedSrc = DrawBoundingBox(image, output.Box);
-                            }
-                            else output.ProcessedSrc = DrawBoundingBox(image, output.Box);
+                            output.ProcessedSrc = DrawInstruction(src, result.ResultPoints, result.BarcodeFormat, conf);
                             break;
                         case ProcessedType.IMAGE_PROCESSED:
-                            output.ProcessedSrc = DrawBoundingBox(bmp, output.Box);
+                            output.ProcessedSrc = DrawInstruction(enhanced, result.ResultPoints, result.BarcodeFormat, conf);
                             break;
                     }
-
 
                     return output;
                 }
             }
         }
 
-        private static void GetBoundingBox(ResultPoint[] points, out System.Drawing.Point loc, out System.Drawing.Size siz)
+        private static Mat ResizeMat(Mat src, List<ImagePR> conf)
         {
-            float width = points[1].X - points[2].X;
-            float height = points[0].Y - points[1].Y;
+            Mat outputMat = src.Clone();
 
-            if (height < 0)
+            double scale = 1;
+            if (conf.Contains(ImagePR.IMAGE_RESIZE))
             {
-                if (width < 0)
+                if (src.Width <= 300 || src.Height <= 300)
                 {
-                    loc = new System.Drawing.Point((int)(points[0].X - width), (int)(points[0].Y - height));
-                    siz = new System.Drawing.Size((int)Math.Abs(width), (int)Math.Abs(height));
+                    if (src.Width > src.Height) scale = 300 / src.Height;
+                    else scale = 300 / src.Width;
                 }
-                else
-                {
-                    loc = new System.Drawing.Point((int)points[0].X, (int)(points[0].Y - height));
-                    siz = new System.Drawing.Size((int)width, (int)Math.Abs(height));
-                }
+
+                Cv2.Resize(src, outputMat, new OpenCvSharp.Size(), scale, scale, InterpolationFlags.Cubic);
             }
-            else
-            {
-                if (width < 0)
-                {
-                    loc = new System.Drawing.Point((int)(points[0].X - width), (int)points[0].Y);
-                    siz = new System.Drawing.Size((int) Math.Abs(width), (int)height);
-                }
-                else
-                {
-                    loc = new System.Drawing.Point((int)points[0].X, (int)points[0].Y);
-                    siz = new System.Drawing.Size((int)width, (int)height);
-                }
-            }
+
+            return outputMat;
         }
 
-        private static Bitmap DrawBoundingBox(Bitmap src, Rectangle box)
+        private static Bitmap DrawInstruction(Mat src, ResultPoint[] points, BarcodeFormat format, List<ImagePR> conf)
         {
-            Bitmap dst = new Bitmap(src);
-            using (Graphics graphic = Graphics.FromImage(dst))
+            string type = format.ToString();
+            int areaScanExtend;
+
+            Mat overlay = ResizeMat(src, conf);
+            Mat outputMat = ResizeMat(src, conf);
+
+            foreach (string x in format1d)
             {
-                Pen pen = new Pen(Color.Red, 2);
-                graphic.DrawRectangle(pen, box);
-
-                return dst;
-            }
-        }
-
-        private static Bitmap ResizeImage(Bitmap src, int width, int height)
-        {
-            var destRect = new Rectangle(0, 0, width, height);
-            var destImage = new Bitmap(width, height);
-
-            destImage.SetResolution(src.HorizontalResolution, src.VerticalResolution);
-
-            using (var graphics = Graphics.FromImage(destImage))
-            {
-                graphics.CompositingMode = CompositingMode.SourceCopy;
-                graphics.CompositingQuality = CompositingQuality.HighQuality;
-                graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                graphics.SmoothingMode = SmoothingMode.HighQuality;
-                graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-
-                using (var wrapMode = new ImageAttributes())
+                if (type.Contains(x))
                 {
-                    wrapMode.SetWrapMode(WrapMode.TileFlipXY);
-                    graphics.DrawImage(src, destRect, 0, 0, src.Width, src.Height, GraphicsUnit.Pixel, wrapMode);
+                    OpenCvSharp.Point outLeft = new OpenCvSharp.Point((int)points[0].X, (int)points[0].Y);
+                    OpenCvSharp.Point outRight = new OpenCvSharp.Point((int)points[1].X, (int)points[1].Y);
+                    areaScanExtend = 20;
+
+                    OpenCvSharp.Point rectPoint = new OpenCvSharp.Point(outLeft.X - areaScanExtend, outLeft.Y - areaScanExtend);
+                    OpenCvSharp.Size rectSize = new OpenCvSharp.Size((outRight.X - outLeft.X) + areaScanExtend * 2, areaScanExtend * 2);
+                    OpenCvSharp.Rect rect = new OpenCvSharp.Rect(rectPoint, rectSize);
+
+                    OpenCvSharp.Cv2.Rectangle(overlay, rect, Scalar.LightGreen, 15);
+                    OpenCvSharp.Cv2.AddWeighted(src, 0.7, overlay, 0.3, 0, outputMat);
+                    OpenCvSharp.Cv2.Rectangle(outputMat, rect, Scalar.LightGreen, 2);
+
+                    return BitmapConverter.ToBitmap(outputMat);
                 }
             }
 
-            return destImage;
+            foreach (string x in format1dx)
+            {
+                if (type.Contains(x))
+                {
+                    OpenCvSharp.Point outLeft = new OpenCvSharp.Point((int)points[0].X, (int)points[0].Y);
+                    OpenCvSharp.Point outRight = new OpenCvSharp.Point((int)points[0].X, (int)points[0].Y);
+
+                    foreach (ResultPoint pts in points)
+                    {
+                        if ((int)pts.X < outLeft.X)
+                        {
+                            outLeft.X = (int)pts.X;
+                            outLeft.Y = (int)pts.Y;
+                        }
+
+                        if ((int)pts.X > outRight.X)
+                        {
+                            outRight.X = (int)pts.X;
+                            outRight.Y = (int)pts.Y;
+                        }
+                    }
+
+                    areaScanExtend = 20;
+                    OpenCvSharp.Point rectPoint = new OpenCvSharp.Point(outLeft.X - areaScanExtend * 2, outLeft.Y - areaScanExtend);
+                    OpenCvSharp.Size rectSize = new OpenCvSharp.Size((outRight.X - outLeft.X) + areaScanExtend * 4, areaScanExtend * 2);
+                    OpenCvSharp.Rect rect = new OpenCvSharp.Rect(rectPoint, rectSize);
+
+                    OpenCvSharp.Cv2.Rectangle(overlay, rect, Scalar.LightGreen, 15);
+                    OpenCvSharp.Cv2.AddWeighted(src, 0.7, overlay, 0.3, 0, outputMat);
+                    OpenCvSharp.Cv2.Rectangle(outputMat, rect, Scalar.LightGreen, 2);
+
+                    return BitmapConverter.ToBitmap(outputMat);
+                }
+            }
+
+            foreach (string x in format2d)
+            {
+                if (type.Contains(x) && points.Length <= 4)
+                {
+                    OpenCvSharp.Point[] outpt = new OpenCvSharp.Point[4];
+
+                    for (int i = 0; i < points.Length; i += 1)
+                        outpt[i] = new OpenCvSharp.Point(points[i].X, points[i].Y);
+
+                    if (points.Length == 3)
+                    {
+                        float xdiv = outpt[0].X - outpt[1].X;
+                        float ydiv = outpt[0].Y - outpt[1].Y;
+
+                        outpt[3] = new OpenCvSharp.Point(points[2].X + xdiv, points[2].Y + ydiv);
+                    }
+
+                    RotatedRect rrec = Cv2.MinAreaRect(outpt);
+                    OpenCvSharp.Point2f[] pointfs = rrec.Points();
+
+                    for (int j = 0; j < pointfs.Length; j += 1)
+                        Cv2.Line(overlay, new OpenCvSharp.Point((int)pointfs[j].X, (int)pointfs[j].Y), new OpenCvSharp.Point((int)pointfs[(j + 1) % 4].X, (int)pointfs[(j + 1) % 4].Y), Scalar.LightGreen, 15);
+
+                    OpenCvSharp.Cv2.AddWeighted(src, 0.7, overlay, 0.3, 0, outputMat);
+
+                    for (int j = 0; j < pointfs.Length; j += 1)
+                        Cv2.Line(outputMat, new OpenCvSharp.Point((int)pointfs[j].X, (int)pointfs[j].Y), new OpenCvSharp.Point((int)pointfs[(j + 1) % 4].X, (int)pointfs[(j + 1) % 4].Y), Scalar.LightGreen, 2);
+
+                    return BitmapConverter.ToBitmap(outputMat);
+                }
+            }
+
+            foreach (string x in formatTest)
+            {
+                if (type.Contains(x))
+                {
+                    for (int i = 0; i < points.Length; i += 1)
+                    {
+                        OpenCvSharp.Point temPoint = new OpenCvSharp.Point((int)points[i].X, (int)points[i].Y);
+                        Cv2.Circle(overlay, temPoint, 20, Scalar.LightGreen, 15);
+                    }
+
+                    Cv2.AddWeighted(src, 0.7, overlay, 0.3, 0, outputMat);
+
+                    for (int i = 0; i < points.Length; i += 1)
+                    {
+                        OpenCvSharp.Point temPoint = new OpenCvSharp.Point((int)points[i].X, (int)points[i].Y);
+                        Cv2.Circle(outputMat, temPoint, 20, Scalar.LightGreen, 2);
+                    }
+
+                    return BitmapConverter.ToBitmap(outputMat);
+                }
+            }
+
+            return BitmapConverter.ToBitmap(outputMat);
         }
     }
 }
