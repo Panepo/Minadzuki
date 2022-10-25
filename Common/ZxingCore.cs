@@ -46,7 +46,7 @@ namespace Minadzuki
                     if (result == null)
                     {
                         output.Text = "not detected";
-                        output.ProcessedSrc = bmp;
+                        output.ProcessedSrc = image;
                         return output;
                     }
                     
