@@ -1,8 +1,8 @@
-# Kikuzuki
+# Minaduzki
 
 C# implementation of ZXing barcode scanning with pre-recongizing image processing.
 
-<img src="https://github.com/Panepo/Kikuzuki/blob/master/doc/usage1.png" alt="usage1" height="418" width="750">
+<img src="https://github.com/Panepo/Minaduzki/blob/master/doc/usage1.png" alt="usage1" height="418" width="750">
 
 ## Requirements
 
